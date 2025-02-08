@@ -1,4 +1,5 @@
 import { translateText } from './services/translationApi';
+import { handleAudioChat, startRecording } from './services/audioChat';
 
 // Styles for our floating button and modal
 const styles = `
@@ -199,6 +200,76 @@ const styles = `
   padding: 40px;
   font-size: 1.1em;
 }
+
+.chat-response {
+  position: fixed;
+  bottom: 200px;
+  right: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  max-width: 350px;
+  width: 350px;
+  max-height: 500px;
+  z-index: 10000;
+  display: none;
+  overflow-y: auto;
+}
+
+.chat-response.show {
+  display: block;
+}
+
+.chat-message {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.user-message {
+  background: #E3F2FD;
+  margin-left: 20px;
+  margin-right: 5px;
+}
+
+.ai-message {
+  background: #F5F5F5;
+  margin-right: 20px;
+  margin-left: 5px;
+}
+
+.message-text {
+  margin-bottom: 5px;
+}
+
+.response-target-language {
+  color: #2196F3;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.response-english {
+  color: #666;
+  font-style: italic;
+}
+
+.timestamp {
+  font-size: 0.8em;
+  color: #999;
+  margin-top: 4px;
+}
+
+.chat-button.recording {
+  background-color: #ff4444;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
 `;
 
 // Add styles to the page
@@ -228,6 +299,49 @@ const modalContent = modal.querySelector('.text-extractor-content');
 // Add at the top with other global variables
 let points = 0;
 const POINTS_PER_WORD = 100;
+let pageContext: string = '';
+
+// Add interface for chat messages
+interface ChatMessage {
+    type: 'user' | 'ai';
+    text?: string;
+    targetLanguage?: string;
+    english?: string;
+    timestamp: Date;
+}
+
+// Add chat history array
+let chatHistory: ChatMessage[] = [];
+
+// Function to format timestamp
+function formatTime(date: Date): string {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Function to render chat history
+function renderChatHistory() {
+    chatResponse.innerHTML = chatHistory.map(message => {
+        if (message.type === 'user') {
+            return `
+                <div class="chat-message user-message">
+                    <div class="message-text">${message.text}</div>
+                    <div class="timestamp">${formatTime(message.timestamp)}</div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="chat-message ai-message">
+                    <div class="response-target-language">${message.targetLanguage}</div>
+                    <div class="response-english">${message.english}</div>
+                    <div class="timestamp">${formatTime(message.timestamp)}</div>
+                </div>
+            `;
+        }
+    }).join('');
+
+    // Scroll to bottom
+    chatResponse.scrollTop = chatResponse.scrollHeight;
+}
 
 function replaceTextWithTranslations(wordMap: Record<string, string>) {
     if (!document.getElementById('translator-style')) {
@@ -383,6 +497,7 @@ async function translatePageText() {
     try {
         console.log("Starting translation...");
         const text = await extractTextFromPage();
+        pageContext = text; // Store the page context
         const translations = await translateText(text, "French");
         console.log("Got translations:", translations);
         replaceTextWithTranslations(translations);
@@ -557,4 +672,82 @@ function updatePoints() {
     if (pointsDisplay) {
         pointsDisplay.textContent = `Points: ${points}`;
     }
-} 
+}
+
+// Update chat button click handler
+let isRecording = false;
+let mediaRecorder: MediaRecorder | null = null;
+const audioChunks: BlobPart[] = [];
+
+chatButton.addEventListener('click', async () => {
+    try {
+        if (!isRecording) {
+            // Clear previous audio chunks before starting new recording
+            audioChunks.length = 0;
+            
+            // Start recording
+            mediaRecorder = await startRecording();
+            isRecording = true;
+            chatButton.classList.add('recording');
+            chatResponse.textContent = "Recording... Click again to stop.";
+            chatResponse.classList.add('show');
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                chatResponse.innerHTML = "Processing...";
+                
+                try {
+                    const response = await handleAudioChat(audioBlob, "French", pageContext);
+                    
+                    // Add user message to history
+                    chatHistory.push({
+                        type: 'user',
+                        text: response.userText,
+                        timestamp: new Date()
+                    });
+
+                    // Add AI response to history
+                    chatHistory.push({
+                        type: 'ai',
+                        targetLanguage: response.targetLanguage,
+                        english: response.english,
+                        timestamp: new Date()
+                    });
+
+                    // Render updated chat history
+                    renderChatHistory();
+                } catch (error) {
+                    chatResponse.textContent = "Failed to process audio. Please try again.";
+                    console.error(error);
+                }
+            };
+        } else {
+            // Stop recording
+            mediaRecorder?.stop();
+            isRecording = false;
+            chatButton.classList.remove('recording');
+        }
+    } catch (error) {
+        console.error("Error with recording:", error);
+        chatResponse.textContent = "Error accessing microphone. Please check permissions.";
+        chatResponse.classList.add('show');
+    }
+});
+
+// Add click outside to close chat response
+document.addEventListener('click', (event) => {
+    if (!chatButton.contains(event.target as Node) && 
+        !chatResponse.contains(event.target as Node) && 
+        !isRecording) {
+        chatResponse.classList.remove('show');
+    }
+});
+
+// Create chat response element
+const chatResponse = document.createElement('div');
+chatResponse.className = 'chat-response';
+document.body.appendChild(chatResponse); 

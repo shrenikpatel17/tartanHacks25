@@ -4,9 +4,12 @@
   "private": true,
   "dependencies": {
     "cra-template-typescript": "1.2.0",
+    "openai": "^4.83.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "react-speech-recognition": "^3.10.0",
+    "youtube-transcript": "^1.2.1"
   },
   "scripts": {
     "start": "react-scripts start",
