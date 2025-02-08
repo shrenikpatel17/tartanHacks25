@@ -2,6 +2,7 @@ import { translateText } from './services/translationApi';
 import { handleAudioChat, startRecording } from './services/audioChat';
 import { processImageTranslation } from './services/imageTranslation';
 
+//further actions: create database to save the state for the language selection
 // Styles for our floating button and modal
 const styles = `
 .text-extractor-button {
@@ -302,6 +303,19 @@ let points = 0;
 const POINTS_PER_WORD = 100;
 let pageContext: string = '';
 
+// Add supported languages array at the top with other global variables
+const SUPPORTED_LANGUAGES = [
+    { code: 'fr', name: 'French' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'zh', name: 'Chinese' }
+];
+
+let currentLanguage = SUPPORTED_LANGUAGES[0]; // Default to French
+
 // Add interface for chat messages
 interface ChatMessage {
     type: 'user' | 'ai';
@@ -404,8 +418,11 @@ function replaceTextWithTranslations(wordMap: Record<string, string>) {
         const currentClicks = parseInt(element.getAttribute('data-clicks') || '0');
         const nextClicks = (currentClicks + 1) % 4;
 
+        console.log('Word clicked:', word, 'Current clicks:', currentClicks, 'Next clicks:', nextClicks); // Debug log
+
         // Check if word is being mastered (reaching green state)
         const isMastering = nextClicks === 3 && currentClicks === 2;
+        console.log('Is mastering:', isMastering); // Debug log
 
         allInstances.forEach(instance => {
             instance.classList.remove('click-1', 'click-2', 'click-3');
@@ -415,10 +432,21 @@ function replaceTextWithTranslations(wordMap: Record<string, string>) {
             instance.setAttribute('data-clicks', nextClicks.toString());
         });
 
-        // Add points if word is mastered
+        // Add points and trigger water animation if word is mastered
         if (isMastering) {
+            console.log('Word mastered! Triggering animation...'); // Debug log
             points += POINTS_PER_WORD;
             updatePoints();
+            
+            // Get the clicked element's position
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + (rect.width / 2);
+            const y = rect.top;
+            
+            console.log('Element position:', rect); // Debug log
+            
+            // Create water animation at the word's position
+            createWaterAnimation(x, y);
         }
     }
 
@@ -493,13 +521,28 @@ async function extractTextFromPage() {
     return document.body.innerText;
 }
 
-// Create function to handle translation
+// Add this function to remove existing translations
+function clearExistingTranslations() {
+    const translatedWords = document.querySelectorAll('.translated-word');
+    translatedWords.forEach(element => {
+        const original = element.getAttribute('data-original');
+        if (original) {
+            const textNode = document.createTextNode(original);
+            element.parentNode?.replaceChild(textNode, element);
+        }
+    });
+}
+
+// Update the translatePageText function
 async function translatePageText() {
     try {
         console.log("Starting translation...");
+        // Clear existing translations first
+        clearExistingTranslations();
+        
         const text = await extractTextFromPage();
-        pageContext = text; // Store the page context
-        const translations = await translateText(text, "French");
+        pageContext = text;
+        const translations = await translateText(text, currentLanguage.code);
         console.log("Got translations:", translations);
         replaceTextWithTranslations(translations);
         if (modalContent) {
@@ -559,7 +602,12 @@ const menuModal = document.createElement('div');
 menuModal.className = 'menu-modal';
 menuModal.innerHTML = `
     <div class="menu-header">
-        Points: ${points}
+        <select id="language-selector">
+            ${SUPPORTED_LANGUAGES.map(lang => 
+                `<option value="${lang.code}">${lang.name}</option>`
+            ).join('')}
+        </select>
+        <span>Points: ${points}</span>
     </div>
     <div class="menu-button-container">
         <button class="menu-option" id="word-bank">Word Bank</button>
@@ -567,6 +615,38 @@ menuModal.innerHTML = `
     </div>
 `;
 document.body.appendChild(menuModal);
+
+// Add styles for the language selector
+const languageSelectorStyles = `
+    #language-selector {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #fff;
+        background: transparent;
+        color: white;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+
+    #language-selector option {
+        background: #1976D2;
+        color: white;
+    }
+
+    .menu-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+`;
+styleSheet.textContent += languageSelectorStyles;
+
+// Add language change handler
+document.getElementById('language-selector')?.addEventListener('change', (e) => {
+    const selectedCode = (e.target as HTMLSelectElement).value;
+    currentLanguage = SUPPORTED_LANGUAGES.find(lang => lang.code === selectedCode) || SUPPORTED_LANGUAGES[0];
+    translatePageText(); // Retranslate page with new language
+});
 
 // Add event listeners
 menuButton.addEventListener('click', () => {
@@ -702,7 +782,7 @@ chatButton.addEventListener('click', async () => {
                 chatResponse.innerHTML = "Processing...";
                 
                 try {
-                    const response = await handleAudioChat(audioBlob, "French", pageContext);
+                    const response = await handleAudioChat(audioBlob, currentLanguage.code, pageContext);
                     
                     // Add user message to history
                     chatHistory.push({
@@ -792,7 +872,7 @@ class ImageTranslator {
             imgElement.parentNode?.insertBefore(wrapper, imgElement);
             wrapper.appendChild(imgElement);
 
-            const result = await processImageTranslation(imgElement.src, "French");
+            const result = await processImageTranslation(imgElement.src, currentLanguage.code);
             
             if (result.success && result.translatedData) {
                 result.translatedData.forEach(({ translated, vertices }) => {
@@ -822,7 +902,7 @@ class ImageTranslator {
                     overlay.addEventListener("mouseleave", () => {
                         overlay.style.opacity = "1";
                     });
-                    wrapper.appendChild(overlay);
+                    imgElement.parentNode?.insertBefore(overlay, imgElement);
                 });
             }
         } catch (error) {
@@ -833,4 +913,67 @@ class ImageTranslator {
 
 // Initialize the translator after your existing code
 const imageTranslator = new ImageTranslator();
-imageTranslator.init(); 
+imageTranslator.init();
+
+// Update water animation styles
+const waterAnimationStyles = `
+    @keyframes waterBounce {
+        0% {
+            transform: translateY(0) scale(0.5);
+            opacity: 0;
+            visibility: visible;
+        }
+        50% {
+            transform: translateY(-20px) scale(1.2);
+            opacity: 0.7;
+        }
+        100% {
+            transform: translateY(-40px) scale(1);
+            opacity: 0;
+        }
+    }
+
+    .water-animation {
+        position: fixed;
+        pointer-events: none;
+        width: 50px;
+        height: 50px;
+        z-index: 10001;
+        visibility: hidden;
+        animation: waterBounce 1s ease-out forwards;
+    }
+`;
+
+// Update the createWaterAnimation function
+function createWaterAnimation(x: number, y: number) {
+    console.log('Creating water animation at:', x, y);
+    
+    const water = document.createElement('img');
+    water.src = chrome.runtime.getURL('images/water.png');
+    water.className = 'water-animation';
+    water.style.left = `${x - 25}px`;
+    // Position it at the word's position (not below it)
+    water.style.top = `${y}px`;
+    
+    // Add error handling for image loading
+    water.onerror = (e) => {
+        console.error('Failed to load water image:', e);
+        console.log('Attempted image URL:', water.src);
+    };
+    
+    water.onload = () => {
+        console.log('Water image loaded successfully');
+    };
+    
+    document.body.appendChild(water);
+    
+    // Debug log for animation
+    water.addEventListener('animationstart', () => {
+        console.log('Water animation started');
+    });
+    
+    water.addEventListener('animationend', () => {
+        console.log('Water animation ended');
+        water.remove();
+    });
+} 

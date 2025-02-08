@@ -26,6 +26,10 @@
     "action": {
       "default_popup": "index.html"
     },
-    "options_page": "options.html"
+    "options_page": "options.html",
+    "web_accessible_resources": [{
+      "resources": ["images/water.png"],
+      "matches": ["<all_urls>"]
+    }]
   }
   
