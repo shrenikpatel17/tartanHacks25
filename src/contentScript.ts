@@ -4,6 +4,34 @@ import { processImageTranslation } from './services/imageTranslation';
 
 // Styles for our floating button and modal
 const styles = `
+.whale-button {
+    position: fixed;
+    right: 30px;
+    bottom: 30px;
+    width: 90px;
+    height: 90px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    z-index: 15; /* 最大z-index值 */
+    transition: transform 0.2s, filter 0.2s;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  .whale-button:hover {
+    transform: scale(1.1);
+    filter: none;
+  }
+  
+  .whale-img {
+    width: 120%;
+    height: 120%;
+    object-fit: contain;
+    transition: border-color 0.2s;
+    border-radius: 0;
+  }
+
 .text-extractor-button {
   position: fixed;
   bottom: 20px;
@@ -44,76 +72,92 @@ const styles = `
   cursor: pointer;
   font-weight: bold;
 }
-
 .icon-button {
-  position: fixed;
-  right: 20px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #2196F3;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  z-index: 10000;
-}
+    position: fixed;
+    z-index: 1000;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
 
-.chat-button {
-  bottom: 140px;
-}
+  .icon-button:hover {
+    transform: scale(1.1);
+  }
 
-.menu-button {
-  bottom: 80px;
-}
+  /* 聊天按钮定位 */
+  .chat-button {
+    right: 62px;
+    bottom: 80px;
+  }
 
-.menu-modal {
-  display: none;
-  position: fixed;
-  bottom: 140px;
-  right: 20px;
-  width: 200px;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  z-index: 9999;
-  overflow: hidden;
-}
+  /* 菜单按钮定位 */
+  .menu-button {
+    right: 32px;
+    bottom: 80px;
+  }
 
-.menu-modal.show {
-  display: block;
-}
+  /* 模态框样式 */
+  .menu-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    padding: 16px;
+    z-index: 1001;
+    display: none;
+  }
 
-.menu-header {
-  background-color: #1976D2;
-  color: white;
-  padding: 10px;
-  text-align: center;
-  font-weight: bold;
-}
+  .menu-header {
+    height: 80px;
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: -16px -16px 16px -16px;
+    border-radius: 12px 12px 0 0;
+  }
 
-.menu-button-container {
-  padding: 10px;
-}
+  .points-badge {
+    background: rgba(255,255,255,0.9);
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+  }
 
-.menu-option {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  border: none;
-  background-color: #E3F2FD;
-  border-radius: 5px;
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.2s;
-}
+  .menu-button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-.menu-option:hover {
-  background-color: #BBDEFB;
-}
+  .menu-option {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #f8f8f8;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    transition: background 0.2s;
+  }
+
+  .menu-option:hover {
+    background: #fff;
+  }
+
+  .option-icon {
+    flex-shrink: 0;
+  }
 
 .word-bank-modal {
   display: none;
@@ -279,10 +323,47 @@ styleSheet.textContent = styles;
 document.head.appendChild(styleSheet);
 
 // Create and add the button
+// const button = document.createElement('button');
+// button.className = 'text-extractor-button';
+// button.textContent = 'Whaley';
+// document.body.appendChild(button);
+
+// 创建按钮容器
 const button = document.createElement('button');
-button.className = 'text-extractor-button';
-button.textContent = 'Whaley';
+button.className = 'whale-button'; // 使用统一样式类名
+// 创建图片元素
+const img = document.createElement('img');
+img.src = chrome.runtime.getURL('/whale.png');
+img.className = 'whale-img'; // 添加图片样式类
+// 将图片添加到按钮
+button.appendChild(img);
+// 添加按钮到页面
 document.body.appendChild(button);
+
+
+const chatButton = document.createElement('button');
+chatButton.className = 'icon-button chat-button';
+chatButton.innerHTML = `
+  <img src="${chrome.runtime.getURL('chat.png')}" 
+       class="custom-icon" 
+       alt="Chat"
+       width="40"
+       height="40">
+`;
+document.body.appendChild(chatButton);
+
+// 创建菜单按钮
+const menuButton = document.createElement('button');
+menuButton.className = 'icon-button menu-button';
+menuButton.innerHTML = `
+  <img src="${chrome.runtime.getURL('menu.png')}" 
+       class="custom-icon" 
+       alt="Menu"
+       width="40"
+       height="40">
+`;
+document.body.appendChild(menuButton);
+
 
 // Create and add the modal
 const modal = document.createElement('div');
@@ -532,27 +613,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-// Create chat button
-const chatButton = document.createElement('button');
-chatButton.className = 'icon-button chat-button';
-chatButton.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-    </svg>
-`;
-document.body.appendChild(chatButton);
+// // Create chat button
+// const chatButton = document.createElement('button');
+// chatButton.className = 'icon-button chat-button';
+// chatButton.innerHTML = `
+//     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+//         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+//     </svg>
+// `;
+// document.body.appendChild(chatButton);
 
-// Create menu button
-const menuButton = document.createElement('button');
-menuButton.className = 'icon-button menu-button';
-menuButton.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="3" y1="6" x2="21" y2="6"></line>
-        <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
-`;
-document.body.appendChild(menuButton);
+// // Create menu button
+// const menuButton = document.createElement('button');
+// menuButton.className = 'icon-button menu-button';
+// menuButton.innerHTML = `
+//     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+//         <line x1="3" y1="12" x2="21" y2="12"></line>
+//         <line x1="3" y1="6" x2="21" y2="6"></line>
+//         <line x1="3" y1="18" x2="21" y2="18"></line>
+//     </svg>
+// `;
+// document.body.appendChild(menuButton);
+
 
 // Create menu modal
 const menuModal = document.createElement('div');
