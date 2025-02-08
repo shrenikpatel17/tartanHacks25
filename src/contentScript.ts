@@ -95,12 +95,13 @@ const styles = `
   .menu-button {
     right: 32px;
     bottom: 80px;
+    z-index: 1001;
   }
 
   /* 模态框样式 */
   .menu-modal {
     position: fixed;
-    top: 50%;
+    top: 70%;
     left: 50%;
     transform: translate(-50%, -50%);
     width: 300px;
@@ -121,6 +122,10 @@ const styles = `
     margin: -16px -16px 16px -16px;
     border-radius: 12px 12px 0 0;
   }
+
+  .menu-modal.show {
+    display: block; /* 显示时切换为block */
+}
 
   .points-badge {
     background: rgba(255,255,255,0.9);
@@ -654,6 +659,19 @@ document.body.appendChild(menuModal);
 menuButton.addEventListener('click', () => {
     menuModal.classList.toggle('show');
 });
+
+// // 修改后的菜单选项事件绑定
+// menuModal.addEventListener('click', (event) => {
+//     const target = event.target as HTMLElement;
+//     if (target.id === 'word-bank') {
+//         updateWordBank();
+//         wordBankModal.classList.add('show');
+//         menuModal.classList.remove('show');
+//     } else if (target.id === 'history') {
+//         console.log('History clicked');
+//         // 添加显示History模态框的代码
+//     }
+// });
 
 // Close menu when clicking outside
 document.addEventListener('click', (event) => {
