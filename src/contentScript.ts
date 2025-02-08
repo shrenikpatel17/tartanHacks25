@@ -1,9 +1,55 @@
 import { translateText } from './services/translationApi';
 import { handleAudioChat, startRecording } from './services/audioChat';
 import { processImageTranslation } from './services/imageTranslation';
+import { YoutubeTranscript } from 'youtube-transcript';
+import { proxyYoutubeRequest } from './services/youtubeProxy';
+
+// Add at the top of the file with other constants
+const WORDS_FOR_GOLDEN = 5;  // Number of words needed for golden progress
+const PROGRESS_COLORS = {
+    normal: '#2196F3',
+    golden: '#FFD700'
+};
+
+// Add supported languages array at the top with other global variables
+const SUPPORTED_LANGUAGES = [
+    { code: 'fr', name: 'French' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'zh', name: 'Chinese' }
+];
+let currentLanguage = SUPPORTED_LANGUAGES[0]; // Default to French
 
 // Styles for our floating button and modal
 const styles = `
+.whale-button {
+    position: fixed;
+    right: 13px;
+    bottom: 25px;
+    width: 90px;
+    height: 90px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    z-index: 1000;
+    transition: transform 0.2s;
+    padding: 0;  // Remove padding
+}
+
+.whale-button:hover {
+    transform: scale(1.1);
+}
+
+.whale-img {
+    width: 100%;  // Make image fill the button
+    height: 100%;
+    object-fit: contain;
+    display: block;  // Remove any extra space
+}
+    
 .text-extractor-button {
   position: fixed;
   bottom: 20px;
@@ -46,230 +92,296 @@ const styles = `
 }
 
 .icon-button {
-  position: fixed;
-  right: 20px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #2196F3;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  z-index: 10000;
+    position: fixed;
+    z-index: 1000;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: transform 0.2s;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+.icon-button:hover {
+    transform: scale(1.1);
+}
+
+/* 聊天按钮定位 */
 .chat-button {
-  bottom: 140px;
+    right: 77px;
+    bottom: 85px;
 }
 
+/* 菜单按钮定位 */
 .menu-button {
-  bottom: 80px;
+    right: 40px;
+    bottom: 85px;
+    z-index: 1001;
 }
 
+/* 模态框样式 */
 .menu-modal {
-  display: none;
-  position: fixed;
-  bottom: 140px;
-  right: 20px;
-  width: 200px;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  z-index: 9999;
-  overflow: hidden;
-}
-
-.menu-modal.show {
-  display: block;
+    position: fixed;
+    top: 64%;
+    left: 84%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    background:rgb(243, 248, 255);
+    border-radius: 12px;  /* Rounded corners for modal */
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    padding: 0;  /* Remove default padding */
+    z-index: 1001;
+    display: none;
+    overflow: hidden;  /* Ensure content doesn't overflow rounded corners */
 }
 
 .menu-header {
-  background-color: #1976D2;
-  color: white;
-  padding: 10px;
-  text-align: center;
-  font-weight: bold;
+    margin-top: 4px;  /* Reduce space below progress bar */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;  /* Add horizontal padding */
+    height: 40px;  /* Reduce header height */
+}
+
+.menu-modal.show {
+    display: block; /* 显示时切换为block */
+}
+
+.points-badge {
+    background: rgba(255,255,255,0.9);
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
 }
 
 .menu-button-container {
-  padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .menu-option {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  border: none;
-  background-color: #E3F2FD;
-  border-radius: 5px;
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.2s;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background:rgb(216, 228, 255);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 90%;
+    text-align: center;
+    transition: background 0.2s;
 }
 
 .menu-option:hover {
-  background-color: #BBDEFB;
+    background: #fff;
+    cursor: pointer;
+}
+
+.option-icon {
+    flex-shrink: 0;
 }
 
 .word-bank-modal {
-  display: none;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80%;
-  max-width: 600px;
-  max-height: 80vh;
-  background-color: white;
-  border-radius: 15px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  z-index: 10002;
-  overflow: hidden;
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 600px;
+    max-height: 80vh;
+    background-color: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 10002;
+    overflow: hidden;
 }
 
 .word-bank-modal.show {
-  display: block;
+    display: block;
 }
 
 .word-bank-header {
-  background-color: #1976D2;
-  color: white;
-  padding: 20px;
-  font-size: 1.5em;
-  font-weight: bold;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    background-color: #1976D2;
+    color: white;
+    padding: 20px;
+    font-size: 1.5em;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .word-bank-close {
-  cursor: pointer;
-  font-size: 1.5em;
-  color: white;
+    cursor: pointer;
+    font-size: 1.5em;
+    color: white;
 }
 
 .word-bank-content {
-  padding: 20px;
-  overflow-y: auto;
-  max-height: calc(80vh - 80px);
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 80px);
 }
 
 .word-bank-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
-  padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    padding: 10px;
 }
 
 .word-pair {
-  background: #E3F2FD;
-  border-radius: 10px;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: transform 0.2s;
+    background: #E3F2FD;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s;
 }
 
 .word-pair:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .original-word {
-  color: #666;
-  font-size: 0.9em;
-  margin-bottom: 5px;
+    color: #666;
+    font-size: 0.9em;
+    margin-bottom: 5px;
 }
 
 .translated-word-display {
-  background-color: #4CAF50;
-  color: white;
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-weight: bold;
-  font-size: 1.1em;
+    background-color: #4CAF50;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1.1em;
 }
 
 .no-words-message {
-  text-align: center;
-  color: #666;
-  padding: 40px;
-  font-size: 1.1em;
+    text-align: center;
+    color: #666;
+    padding: 40px;
+    font-size: 1.1em;
 }
 
 .chat-response {
-  position: fixed;
-  bottom: 200px;
-  right: 20px;
-  background: white;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  max-width: 350px;
-  width: 350px;
-  max-height: 500px;
-  z-index: 10000;
-  display: none;
-  overflow-y: auto;
+    position: fixed;
+    bottom: 200px;
+    right: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    max-width: 350px;
+    width: 350px;
+    max-height: 500px;
+    z-index: 10000;
+    display: none;
+    overflow-y: auto;
 }
 
 .chat-response.show {
-  display: block;
+    display: block;
 }
 
 .chat-message {
-  margin-bottom: 15px;
-  padding: 10px;
-  border-radius: 8px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 8px;
 }
 
 .user-message {
-  background: #E3F2FD;
-  margin-left: 20px;
-  margin-right: 5px;
+    background: #E3F2FD;
+    margin-left: 20px;
+    margin-right: 5px;
 }
 
 .ai-message {
-  background: #F5F5F5;
-  margin-right: 20px;
-  margin-left: 5px;
+    background: #F5F5F5;
+    margin-right: 20px;
+    margin-left: 5px;
 }
 
 .message-text {
-  margin-bottom: 5px;
+    margin-bottom: 5px;
 }
 
 .response-target-language {
-  color: #2196F3;
-  margin-bottom: 4px;
-  font-weight: bold;
+    color: #2196F3;
+    margin-bottom: 4px;
+    font-weight: bold;
 }
 
 .response-english {
-  color: #666;
-  font-style: italic;
+    color: #666;
+    font-style: italic;
 }
 
 .timestamp {
-  font-size: 0.8em;
-  color: #999;
-  margin-top: 4px;
+    font-size: 0.8em;
+    color: #999;
+    margin-top: 4px;
 }
 
 .chat-button.recording {
-  background-color: #ff4444;
-  animation: pulse 1.5s infinite;
+    background: rgba(255, 0, 0, 0.2);  /* Subtle red background */
+    animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+    }
+}
+
+.progress-container {
+    width: 100%;
+    height: 4px;
+    background-color: #E0E0E0;
+    position: relative;  /* Change from absolute to relative */
+    overflow: hidden;
+    border-radius: 4px 4px 0 0;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: ${PROGRESS_COLORS.normal};
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.menu-container {
+    padding: 0;  /* Remove container padding */
+}
+
+.points-display {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+#language-selector {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
 }
 `;
 
@@ -279,9 +391,18 @@ styleSheet.textContent = styles;
 document.head.appendChild(styleSheet);
 
 // Create and add the button
+// const button = document.createElement('button');
+// button.className = 'text-extractor-button';
+// button.textContent = 'Whaley';
+// document.body.appendChild(button);
 const button = document.createElement('button');
-button.className = 'text-extractor-button';
-button.textContent = 'Whaley';
+button.className = 'whale-button';
+const img = document.createElement('img');
+img.src = chrome.runtime.getURL('whale.png');
+img.className = 'whale-img';
+img.alt = 'Whale';  // Add alt text
+console.log('Whale image URL:', img.src); // Debug image path
+button.appendChild(img);
 document.body.appendChild(button);
 
 // Create and add the modal
@@ -415,10 +536,11 @@ function replaceTextWithTranslations(wordMap: Record<string, string>) {
             instance.setAttribute('data-clicks', nextClicks.toString());
         });
 
-        // Add points if word is mastered
+        // Add points and update progress if word is mastered
         if (isMastering) {
             points += POINTS_PER_WORD;
             updatePoints();
+            updateProgress();
         }
     }
 
@@ -493,13 +615,25 @@ async function extractTextFromPage() {
     return document.body.innerText;
 }
 
+function clearExistingTranslations() {
+    const translatedWords = document.querySelectorAll('.translated-word');
+    translatedWords.forEach(element => {
+        const original = element.getAttribute('data-original');
+        if (original) {
+            const textNode = document.createTextNode(original);
+            element.parentNode?.replaceChild(textNode, element);
+        }
+    });
+}
+
 // Create function to handle translation
 async function translatePageText() {
     try {
         console.log("Starting translation...");
+        clearExistingTranslations();
         const text = await extractTextFromPage();
-        pageContext = text; // Store the page context
-        const translations = await translateText(text, "French");
+        pageContext = text;
+        const translations = await translateText(text, currentLanguage.code);
         console.log("Got translations:", translations);
         replaceTextWithTranslations(translations);
         if (modalContent) {
@@ -513,8 +647,59 @@ async function translatePageText() {
     }
 }
 
-// Run translation on page load
-window.addEventListener('load', translatePageText);
+// Update the processYoutubeVideos function
+async function processYoutubeVideos() {
+    const iframes = document.querySelectorAll('iframe');
+    
+    for (const iframe of iframes) {
+        const src = iframe.src;
+        const videoIdMatch = src.match(/youtube\.com\/embed\/([^?]+)/);
+        if (videoIdMatch) {
+            const videoId = videoIdMatch[1];
+            try {
+                const transcript = await proxyYoutubeRequest(videoId);
+                console.log(`Transcript for video ${videoId}:`, transcript);
+            } catch (error) {
+                console.error(`Error fetching transcript for video ${videoId}:`, error);
+            }
+        }
+    }
+
+    const links = document.querySelectorAll('a');
+    for (const link of links) {
+        const href = link.href;
+        const videoIdMatch = href.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+        if (videoIdMatch) {
+            const videoId = videoIdMatch[1];
+            try {
+                const transcript = await proxyYoutubeRequest(videoId);
+                console.log(`Transcript for video ${videoId}:`, transcript);
+            } catch (error) {
+                console.error(`Error fetching transcript for video ${videoId}:`, error);
+            }
+        }
+    }
+}
+
+// Add this to your existing window.addEventListener('load', ...) handler
+window.addEventListener('load', async () => {
+    await translatePageText();
+    await processYoutubeVideos();
+});
+
+// Also observe DOM changes to catch dynamically added videos
+const youtubeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            processYoutubeVideos();
+        }
+    });
+});
+
+youtubeObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+});
 
 // Update the button click handler to reuse the function
 button.addEventListener('click', translatePageText);
@@ -533,47 +718,96 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Create chat button
+// const chatButton = document.createElement('button');
+// chatButton.className = 'icon-button chat-button';
+// chatButton.innerHTML = `
+//     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+//         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+//     </svg>
+// `;
+// document.body.appendChild(chatButton);
+
+// // Create menu button
+// const menuButton = document.createElement('button');
+// menuButton.className = 'icon-button menu-button';
+// menuButton.innerHTML = `
+//     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+//         <line x1="3" y1="12" x2="21" y2="12"></line>
+//         <line x1="3" y1="6" x2="21" y2="6"></line>
+//         <line x1="3" y1="18" x2="21" y2="18"></line>
+//     </svg>
+// `;
+// document.body.appendChild(menuButton);
+
 const chatButton = document.createElement('button');
 chatButton.className = 'icon-button chat-button';
 chatButton.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-    </svg>
+  <img src="${chrome.runtime.getURL('chat.png')}" 
+       class="custom-icon" 
+       alt="Chat"
+       width="40"
+       height="40">
 `;
 document.body.appendChild(chatButton);
 
-// Create menu button
-const menuButton = document.createElement('button');
-menuButton.className = 'icon-button menu-button';
-menuButton.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="3" y1="6" x2="21" y2="6"></line>
-        <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
-`;
-document.body.appendChild(menuButton);
-
-// Create menu modal
+// First, create the menu modal
 const menuModal = document.createElement('div');
 menuModal.className = 'menu-modal';
 menuModal.innerHTML = `
-    <div class="menu-header">
-        Points: ${points}
-    </div>
-    <div class="menu-button-container">
-        <button class="menu-option" id="word-bank">Word Bank</button>
-        <button class="menu-option" id="history">History</button>
+    <div class="menu-container">
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+        <div class="menu-header">
+            <div class="points-display">Points: ${points}</div>
+            <select id="language-selector">
+                ${SUPPORTED_LANGUAGES.map(lang => 
+                    `<option value="${lang.code}">${lang.name}</option>`
+                ).join('')}
+            </select>
+        </div>
+        <div class="menu-options">
+            <div id="word-bank" class="menu-option">
+                <span class="option-icon">📚</span>
+                Word Bank
+            </div>
+            <div id="history" class="menu-option">
+                <span class="option-icon">📖</span>
+                History
+            </div>
+        </div>
     </div>
 `;
 document.body.appendChild(menuModal);
 
-// Add event listeners
-menuButton.addEventListener('click', () => {
-    menuModal.classList.toggle('show');
+// Add language change handler
+document.getElementById('language-selector')?.addEventListener('change', (e) => {
+    const selectedCode = (e.target as HTMLSelectElement).value;
+    currentLanguage = SUPPORTED_LANGUAGES.find(lang => lang.code === selectedCode) || SUPPORTED_LANGUAGES[0];
+    translatePageText(); // Retranslate page with new language
 });
 
-// Close menu when clicking outside
+// Then create the menu button and add its click handler
+const menuButton = document.createElement('button');
+menuButton.className = 'icon-button menu-button';
+menuButton.innerHTML = `
+    <img src="${chrome.runtime.getURL('menu.png')}" 
+         class="custom-icon" 
+         alt="Menu"
+         width="40"
+         height="40">
+`;
+document.body.appendChild(menuButton);
+
+// Single click handler for menu button
+menuButton.addEventListener('click', (event) => {
+    event.stopPropagation(); // Prevent document click from immediately closing
+    menuModal.classList.toggle('show');
+    updateProgress();
+    updatePoints();
+});
+
+// Single click outside handler
 document.addEventListener('click', (event) => {
     if (!menuButton.contains(event.target as Node) && 
         !menuModal.contains(event.target as Node) && 
@@ -669,7 +903,7 @@ document.addEventListener('click', (event) => {
 
 // Function to update points display
 function updatePoints() {
-    const pointsDisplay = document.querySelector('.menu-header');
+    const pointsDisplay = document.querySelector('.points-display');
     if (pointsDisplay) {
         pointsDisplay.textContent = `Points: ${points}`;
     }
@@ -702,7 +936,7 @@ chatButton.addEventListener('click', async () => {
                 chatResponse.innerHTML = "Processing...";
                 
                 try {
-                    const response = await handleAudioChat(audioBlob, "French", pageContext);
+                    const response = await handleAudioChat(audioBlob, currentLanguage.code, pageContext);
                     
                     // Add user message to history
                     chatHistory.push({
@@ -792,7 +1026,7 @@ class ImageTranslator {
             imgElement.parentNode?.insertBefore(wrapper, imgElement);
             wrapper.appendChild(imgElement);
 
-            const result = await processImageTranslation(imgElement.src, "French");
+            const result = await processImageTranslation(imgElement.src, currentLanguage.code);
             
             if (result.success && result.translatedData) {
                 result.translatedData.forEach(({ translated, vertices }) => {
@@ -822,7 +1056,8 @@ class ImageTranslator {
                     overlay.addEventListener("mouseleave", () => {
                         overlay.style.opacity = "1";
                     });
-                    wrapper.appendChild(overlay);
+                    // wrapper.appendChild(overlay);
+                    imgElement.parentNode?.insertBefore(overlay, imgElement);
                 });
             }
         } catch (error) {
@@ -833,4 +1068,21 @@ class ImageTranslator {
 
 // Initialize the translator after your existing code
 const imageTranslator = new ImageTranslator();
-imageTranslator.init(); 
+imageTranslator.init();
+
+// Add function to update progress bar
+function updateProgress() {
+    const masteredWords = getMasteredWords();
+    const progressBar = document.querySelector('.progress-bar') as HTMLElement;
+    if (!progressBar) return;
+
+    const progress = Math.min((masteredWords.length / WORDS_FOR_GOLDEN) * 100, 100);
+    progressBar.style.width = `${progress}%`;
+    
+    // Change color when reaching the goal
+    if (masteredWords.length >= WORDS_FOR_GOLDEN) {
+        progressBar.style.backgroundColor = PROGRESS_COLORS.golden;
+    } else {
+        progressBar.style.backgroundColor = PROGRESS_COLORS.normal;
+    }
+} 

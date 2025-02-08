@@ -35,6 +35,7 @@ module.exports = {
     new CopyPlugin({
       patterns: [
         { from: "manifest.json", to: "manifest.json" }, // Ensure manifest is copied correctly
+        { from: "public/*.png", to: "[name][ext]" },
       ],
     }),
     ...getHtmlPlugins(["index", "options"]),
