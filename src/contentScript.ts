@@ -1,5 +1,6 @@
 import { translateText } from './services/translationApi';
 import { handleAudioChat, startRecording } from './services/audioChat';
+import { processImageTranslation } from './services/imageTranslation';
 
 // Styles for our floating button and modal
 const styles = `
@@ -750,4 +751,86 @@ document.addEventListener('click', (event) => {
 // Create chat response element
 const chatResponse = document.createElement('div');
 chatResponse.className = 'chat-response';
-document.body.appendChild(chatResponse); 
+document.body.appendChild(chatResponse);
+
+// Add a constant for vertical offset at the top of the file
+const TEXT_VERTICAL_OFFSET = -20; // Adjust this value to shift text up or down
+
+class ImageTranslator {
+    private observer: MutationObserver | null = null;
+    private processedImages: Set<HTMLImageElement> = new Set();
+
+    async init() {
+        this.observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node instanceof HTMLImageElement) {
+                        this.processImage(node);
+                    }
+                });
+            });
+        });
+
+        this.observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        // Process existing images
+        document.querySelectorAll('img').forEach(img => this.processImage(img as HTMLImageElement));
+    }
+
+    async processImage(imgElement: HTMLImageElement) {
+        if (this.processedImages.has(imgElement)) return;
+        this.processedImages.add(imgElement);
+
+        try {
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.display = 'inline-block';
+            
+            imgElement.parentNode?.insertBefore(wrapper, imgElement);
+            wrapper.appendChild(imgElement);
+
+            const result = await processImageTranslation(imgElement.src, "French");
+            
+            if (result.success && result.translatedData) {
+                result.translatedData.forEach(({ translated, vertices }) => {
+                    if (!vertices || vertices.length < 4) return;
+
+                    const overlay = document.createElement('div');
+                    overlay.textContent = translated;
+                    overlay.style.cssText = `
+                       position: absolute;
+                        left: ${vertices[0].x}px;
+                        top: ${vertices[0].y + TEXT_VERTICAL_OFFSET}px;
+                        color: white;
+                        text-shadow: -1px -1px 0 #48596e, 
+                                    1px -1px 0 #48596e, 
+                                    -1px 1px 0 #48596e, 
+                                    1px 1px 0 #48596e;
+                        font-family: Arial, sans-serif;
+                        font-size: 14px;
+                        pointer-events: auto; /* Enable hover detection */
+                        z-index: 1000;
+                        transition: opacity 0.2s ease-in-out; /* Smooth fade effect */
+                    `;
+
+                    overlay.addEventListener("mouseenter", () => {
+                        overlay.style.opacity = "0";
+                    });
+                    overlay.addEventListener("mouseleave", () => {
+                        overlay.style.opacity = "1";
+                    });
+                    wrapper.appendChild(overlay);
+                });
+            }
+        } catch (error) {
+            console.error('Error processing image:', error);
+        }
+    }
+}
+
+// Initialize the translator after your existing code
+const imageTranslator = new ImageTranslator();
+imageTranslator.init(); 

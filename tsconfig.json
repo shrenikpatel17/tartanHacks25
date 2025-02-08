@@ -6,7 +6,7 @@
     "esModuleInterop": true,       // Allow CommonJS modules to be imported as ES modules
     "allowSyntheticDefaultImports": true, // Allow default imports for CommonJS modules
     "jsx": "react-jsx",
-    "types": ["react", "react-dom", "jest", "chrome"],    // Enable JSX for React
+    "types": ["react", "react-dom", "jest", "chrome", "node"],    // Enable JSX for React
     "strict": true,                // Enable strict type checking
     "skipLibCheck": true           // Skip type checking of declaration files
   }

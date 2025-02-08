@@ -25,3 +25,5 @@ yarn-error.log*
 .env
 src/background.js
 dist/background.js
+google-service-key.json
+src/services/imageTranslation.ts

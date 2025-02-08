@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Translation Test</title>
+</head>
+<body>
+    <h1>Image Translation Test</h1>
+    
+    <!-- Test image -->
+    <img id="testImage" src="https://dummyimage.com/500x200/000/fff.png&text=Hello+World" style="max-width: 500px;">
+    <button onclick="translate()">Translate Image</button>
+
+    <script type="module">
+        import { processImageUrl } from './src/test/testTranslation.js';
+
+        // Make translate function available globally
+        window.translate = async () => {
+            const img = document.getElementById('testImage');
+            try {
+                const translatedData = await processImageUrl(img.src);
+                
+                // Create overlays for each translated text
+                translatedData.forEach(({ translated, vertices }) => {
+                    const overlay = document.createElement('div');
+                    overlay.textContent = translated;
+                    overlay.style.cssText = `
+                        position: absolute;
+                        left: ${vertices[0].x}px;
+                        top: ${vertices[0].y}px;
+                        color: white;
+                        text-shadow: -1px -1px 0 #000, 
+                                    1px -1px 0 #000, 
+                                    -1px 1px 0 #000, 
+                                    1px 1px 0 #000;
+                        font-family: Arial, sans-serif;
+                        font-size: 16px;
+                        pointer-events: none;
+                        z-index: 1000;
+                    `;
+                    img.parentElement.appendChild(overlay);
+                });
+            } catch (error) {
+                console.error('Translation error:', error);
+            }
+        };
+    </script>
+</body>
+</html>
