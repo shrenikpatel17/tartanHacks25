@@ -1,3 +1,21 @@
+# Project Overview
+This Chrome extension helps language learners enhance their vocabulary and speaking skills through immersive learning during their everyday web browsing. Users can select their target language and proficiency level, and the system will automatically customized the learning content.
+
+# Core Features
+
+## Text Learning:
+Based on the user's proficiency level, the extension automatically selects 5 words from the webpage and translates them into the target language. Users can click on a word to view its meaning in their native language. Words clicked three times are added to the Word Bank for review and reinforcement.
+
+## Image Learning:
+The extension provides concise captions for images in the target language. Additionally, it can extract and translate text embedded in images, helping users learn through visual content.
+
+## Interactive Chat:
+With the built-in chatbot, users can discuss webpage content or YouTube videos in the target language. The chatbot simulates conversations with a native speaker, providing an engaging way to improve speaking skills.
+
+# Key Highlights
+Unlike traditional language learning tools, our extension eliminates the need for deliberate study. Instead, it seamlessly integrates language learning into users' daily activities, such as browsing the web or watching videos. By combining text, images, video, and interactive chat, we deliver a comprehensive and immersive learning experience.
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
