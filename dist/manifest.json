@@ -23,6 +23,12 @@
     "background": {
         "service_worker": "background.js"
     },
+    "web_accessible_resources": [
+        {
+          "resources": ["whale.png","menu.png","fish.png","chat.png"],
+          "matches": ["<all_urls>"]
+        }
+    ],
     "action": {
       "default_popup": "index.html"
     },

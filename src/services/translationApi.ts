@@ -20,7 +20,7 @@ export async function translateText(text: string, targetLanguage: string): Promi
         }
 
         // Get 5 random words
-        const wordsToTranslate = getRandomWords(text, 5);
+        const wordsToTranslate = getRandomWords(text, 10);
         console.log("Words to translate:", wordsToTranslate);
 
         const prompt = `Translate only these 5 words to ${targetLanguage}: ${wordsToTranslate.join(', ')}. 
