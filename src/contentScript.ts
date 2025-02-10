@@ -423,6 +423,19 @@ let points = 0;
 const POINTS_PER_WORD = 100;
 let pageContext: string = '';
 
+// Add supported languages array at the top with other global variables
+const SUPPORTED_LANGUAGES = [
+    { code: 'fr', name: 'French' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'zh', name: 'Chinese' }
+];
+
+let currentLanguage = SUPPORTED_LANGUAGES[0]; // Default to French
+
 // Add interface for chat messages
 interface ChatMessage {
     type: 'user' | 'ai';
@@ -525,8 +538,11 @@ function replaceTextWithTranslations(wordMap: Record<string, string>) {
         const currentClicks = parseInt(element.getAttribute('data-clicks') || '0');
         const nextClicks = (currentClicks + 1) % 4;
 
+        console.log('Word clicked:', word, 'Current clicks:', currentClicks, 'Next clicks:', nextClicks); // Debug log
+
         // Check if word is being mastered (reaching green state)
         const isMastering = nextClicks === 3 && currentClicks === 2;
+        console.log('Is mastering:', isMastering); // Debug log
 
         allInstances.forEach(instance => {
             instance.classList.remove('click-1', 'click-2', 'click-3');
@@ -538,6 +554,7 @@ function replaceTextWithTranslations(wordMap: Record<string, string>) {
 
         // Add points and update progress if word is mastered
         if (isMastering) {
+            console.log('Word mastered! Triggering animation...'); // Debug log
             points += POINTS_PER_WORD;
             updatePoints();
             updateProgress();
