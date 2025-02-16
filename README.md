@@ -1,5 +1,5 @@
 # Project Overview
-This Chrome extension helps language learners enhance their vocabulary and speaking skills through immersive learning during their everyday web browsing. Users can select their target language and proficiency level, and the system will automatically customized the learning content.
+This Chrome extension helps language learners enhance their vocabulary and speaking skills through immersive learning during their everyday web browsing. Users can select their target language and proficiency level, and the system will automatically customize the learning content. We integrate language learning into users' daily browsing by replacing select words with their equivalents in a target language, fostering gradual, contextual, and immersive learning without disrupting everyday activities.
 
 # Core Features
 
