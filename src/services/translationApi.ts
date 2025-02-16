@@ -1,3 +1,6 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 function getRandomWords(text: string, count: number): string[] {
@@ -10,6 +13,15 @@ function getRandomWords(text: string, count: number): string[] {
     return shuffled.slice(0, count);
 }
 
+async function loadSystemPrompt(promptPath: string): Promise<string> {
+    try {
+        return await fs.readFile(promptPath, 'utf-8');
+    } catch (error) {
+        console.error('Error loading system prompt:', error);
+        throw new Error('Failed to load system prompt');
+    }
+}
+
 export async function translateText(text: string, targetLanguage: string): Promise<Record<string, string>> {
     try {
         const response = await chrome.runtime.sendMessage({ action: "getApiKey" });
@@ -19,13 +31,15 @@ export async function translateText(text: string, targetLanguage: string): Promi
             throw new Error('API key not found');
         }
 
-        // Get 5 random words
+        // Get words to translate
         const wordsToTranslate = getRandomWords(text, 10);
         console.log("Words to translate:", wordsToTranslate);
 
-        const prompt = `Translate only these 5 words to ${targetLanguage}: ${wordsToTranslate.join(', ')}. 
-                       Return ONLY a JSON object with the English words as keys and their ${targetLanguage} translations as values.
-                       Example format: {"word1": "translation1", "word2": "translation2"}`;
+        // Load and prepare system prompt
+        const promptTemplate = await loadSystemPrompt(path.join(__dirname, '../prompts/translation.md'));
+        const prompt = promptTemplate
+            .replace('{{targetLanguage}}', targetLanguage)
+            .replace('{{words}}', wordsToTranslate.join(', '));
 
         const responseFetch = await fetch(OPENAI_URL, {
             method: 'POST',
@@ -35,7 +49,10 @@ export async function translateText(text: string, targetLanguage: string): Promi
             },
             body: JSON.stringify({
                 model: "gpt-4",
-                messages: [{ role: "user", content: prompt }],
+                messages: [
+                    { role: "system", content: prompt },
+                    { role: "user", content: "Please proceed with the translation." }
+                ],
                 temperature: 0.5,
             })
         });
@@ -51,7 +68,6 @@ export async function translateText(text: string, targetLanguage: string): Promi
         console.log("Translation response:", translatedContent);
 
         try {
-            // Parse the JSON response
             const wordMap = JSON.parse(translatedContent);
             console.log("Final translations:", wordMap);
             return wordMap;

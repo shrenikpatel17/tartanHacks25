@@ -45,6 +45,10 @@ module.exports = {
     alias: {
       services: path.resolve(__dirname, "src/services/"),
     },
+    fallback: {
+      "fs": false,
+      "path": false
+    }
   },
   output: {
     path: path.join(__dirname, "dist"),
