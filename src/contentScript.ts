@@ -19,7 +19,9 @@ const SUPPORTED_LANGUAGES = [
     { code: 'it', name: 'Italian' },
     { code: 'ja', name: 'Japanese' },
     { code: 'ko', name: 'Korean' },
-    { code: 'zh', name: 'Chinese' }
+    { code: 'zh', name: 'Chinese' }, 
+    { code: 'vi', name: 'Vietnamese' },
+    { code: 'gu', name: 'Gujarati' }
 ];
 let currentLanguage = SUPPORTED_LANGUAGES[0]; // Default to French
 

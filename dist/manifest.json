@@ -1,6 +1,11 @@
 {
     "manifest_version": 3,
-    "name": "Text Extractor",
+    "name": "Whaley",
+    "icons": {
+        "16": "whale.png", 
+        "48": "whale.png",
+        "128": "whale.png"
+    },
     "version": "1.0",
     "permissions": [
       "activeTab",
